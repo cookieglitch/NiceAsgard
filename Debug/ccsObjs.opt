@@ -1,0 +1,1 @@
+"./wlan.obj" "./thermostat.obj" "./main.obj" "./light.obj" -l"libc.a" "../lnk_msp430fr5739.cmd" 
