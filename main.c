@@ -114,7 +114,10 @@ int message = 0;
 //Received messages
 unsigned char stateBuffer[100];
 
-
+//Switch IDs
+#define SW_UP	0x991
+#define SW_DOWN	0x992
+#define SW_SEL	0x993
 
 void sys_init()
 {
@@ -152,9 +155,9 @@ void sys_init()
 
 	// Terminate Unused GPIOs
 	// P1.0 - P1.6 is unused
-	P1OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7);
-	P1DIR &= ~(BIT0 + BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7);
-	P1REN |= (BIT0 + BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7);
+//	P1OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7);
+//	P1DIR &= ~(BIT0 + BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7);
+//	P1REN |= (BIT0 + BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7);
 
 	// P1.4 is used as input from NTC voltage divider
 	// Set it to output low
@@ -205,6 +208,13 @@ void sys_init()
 	
 	#else
 	//Setup for switch UI
+	//P1.1 - Up Switch, P1.2 - Down Switch, P1.5 - Select Switch
+	GPIO_setAsInputPin(__MSP430_BASEADDRESS_PORT1_R__,
+					   GPIO_PORT_P1, GPIO_PIN1 );
+	GPIO_setAsInputPin(__MSP430_BASEADDRESS_PORT1_R__,
+					   GPIO_PORT_P1, GPIO_PIN2 );
+	GPIO_setAsInputPin(__MSP430_BASEADDRESS_PORT1_R__,
+					   GPIO_PORT_P1, GPIO_PIN5 );
 	
 	#endif
 }
@@ -939,6 +949,168 @@ void changeLightLev(int lev)
 	
 }
 
+/**
+ * updateState
+ * \param New state
+ * \return None
+ * \brief Changes state of the system and updates environment as appropriate
+ */
+void updateState(int state)
+{
+	if (SYSTEMSTATE != state)
+	{
+		SYSTEMSTATE = state;
+		
+		if (state == CLOSE0)
+		{
+			changeBlindPos(closed.blindPos);
+			changeLightLev(closed.lightLev);
+		}
+		else if(state == OPEN0)
+		{
+			changeBlindPos(open.blindPos);
+			changeLightLev(open.lightLev);
+		}
+		else if(state == FILM0)
+		{
+			changeBlindPos(film.blindPos);
+			changeLightLev(film.lightLev);
+		}
+		else if(state == DAY0)
+		{
+			changeBlindPos(dayNorm.blindPos);
+			changeLightLev(dayNorm.lightLev);
+		}
+		else if(state == NIGHT0)
+		{
+			changeBlindPos(nightNorm.blindPos);
+			changeLightLev(nightNorm.lightLev);
+		}
+		else
+		{
+			//Leave system as is and continue
+		}
+}
+	
+/**
+ * UIToStateConv
+ * \param UI List Position
+ * \return int State
+ * \brief Converts UI list position into the equivilent state
+ */
+int UIToStateConv(int listPos)
+{
+	int equivState = 0;
+	
+	 switch (listPos) {
+		case 0:
+			 equivState = CLOSE0;
+			break;
+		case 1:
+			 equivState = OPEN0;
+			 break;
+		case 2:
+			 equivState = FILM0;
+			 break;
+		case 3:
+			 equivState = DAY0;
+			break;
+		case 4:
+			 equivState = NIGHT0;
+			break;
+		case 5:
+			 equivState = CLOSE1;
+			 break;
+		case 6:
+			 equivState = OPEN1;
+			 break;
+		case 7:
+			 equivState = FILM1;
+			 break;
+		case 8:
+			 equivState = DAY1;
+			 break;
+		case 9:
+			 equivState = NIGHT1;
+			 break;
+		case 10:
+			 equivState = CLOSE2;
+			 break;
+		case 11:
+			 equivState = OPEN2;
+			 break;
+		case 12:
+			 equivState = FILM2;
+			 break;
+		case 13:
+			 equivState = DAY2;
+			 break;
+		case 14:
+			 equivState = NIGHT2;
+			 break;
+		default:
+			break;
+	}
+}
+	
+
+/**
+ * readSwitch
+ * \param Switch
+ * \return Switch state
+ * \brief Read switch state
+ */
+int readSwitch(int switchID)
+{
+	if (switchID == SW_UP)
+	{
+		if(GPIO_INPUT_PIN_HIGH == GPIO_getInputPinValue(__MSP430_BASEADDRESS_PORT1_R__,
+														GPIO_PORT_P1,
+														GPIO_PIN1 ))
+		{
+			return 1;
+		}
+		else
+		{
+			return 0;
+		}
+
+	}
+	else if(switchID == SW_DOWN)
+	{
+		if(GPIO_INPUT_PIN_HIGH == GPIO_getInputPinValue(__MSP430_BASEADDRESS_PORT1_R__,
+														GPIO_PORT_P1,
+														GPIO_PIN2 ))
+		{
+			return 1;
+		}
+		else
+		{
+			return 0;
+		}
+		
+	}
+	else if(switchID == SW_SEL)
+	{
+		if(GPIO_INPUT_PIN_HIGH == GPIO_getInputPinValue(__MSP430_BASEADDRESS_PORT1_R__,
+														GPIO_PORT_P1,
+														GPIO_PIN5 ))
+		{
+			return 1;
+		}
+		else
+		{
+			return 0;
+		}
+		
+	}
+	else
+	{
+		return 0;
+	}
+
+}
+
 int main(void)
 {
 	WDTCTL = WDTPW + WDTHOLD;             // Stop watchdog timer
@@ -954,6 +1126,7 @@ int main(void)
 	CC3000ConectionState = CC3000_INIT_STATE;
 	ServiceCC300StateMachine();
 	
+	int UIListPosition = 0;
 	
 	for (;;)
 	{
@@ -992,6 +1165,8 @@ int main(void)
 					//Handle message
 					if(roomID == SYSTEMID)
 					{
+						updateState(state);
+						/*
 						if (SYSTEMSTATE != state)
 						{
 							SYSTEMSTATE = state;
@@ -1030,6 +1205,7 @@ int main(void)
 						{
 							//Do nothing
 						}
+						 */
 
 					}
 					else
@@ -1059,8 +1235,86 @@ int main(void)
 					//Handle Cap UI
 					
 			#else
-					//Handle switch UI
+		int possibleNewState = 0;
 					
+		//Handle switch UI
+		
+		//Up Button
+		if (readSwitch(SW_UP) == 1)
+		{
+			//Update LCD
+			
+			
+			//Update possible new state
+			UIListPosition--;
+			possibleNewState = UIToStateConv(UIListPosition);
+		}
+		else
+		{
+			//Nothing
+		}
+
+		//Down switch
+		if (readSwitch(SW_DOWN) == 1)
+		{
+			//Update LCD
+			
+			
+			//Update possible new state
+			UIListPosition++;
+			possibleNewState = UIToStateConv(UIListPosition);
+		}
+		else
+		{
+			//Nothing
+		}
+		
+		//Select Switch
+		if (readSwitch(SW_SEL) == 1)
+		{
+			//Update LCD
+			
+			//Update environment
+			updateState(possibleNewState)
+		}
+		else
+		{
+			//Nothing
+		}
+		
+		/*
+		if (button == UP)
+		{
+			//Update LCD
+			
+			
+			//Update possible new state
+			UIListPosition--;
+			possibleNewState = UIToStateConv(UIListPosition);
+		}
+		else if(button == DOWN)
+		{
+			//Update LCD
+			
+			
+			//Update possible new state
+			UIListPosition++;
+			possibleNewState = UIToStateConv(UIListPosition);
+		}
+		else if(button == SELECT)
+		{
+			//Update LCD
+			
+			//Update environment
+			updateState(possibleNewState);
+		}
+		else
+		{
+			//nothing!
+		}
+		 */
+
+
 			#endif
 		#endif
   }
