@@ -1,5 +1,7 @@
 element14 Ultimate Road Test
 
+The Nice Asgard Project - John Tiernan
+
 From the site:
 The Challenge
  
@@ -10,3 +12,8 @@ The competition will be judged by a panel of experts from Texas Instruments, mak
 The Judging
 	
 Competitors are required to blog on a weekly basis about the progress of their projects; they are also encouraged to provide videos and other dynamic content to facilitate the judging process. The review of the projects will occur on June 4th. The winner will be the individual who produces a solution which is the most compelling, innovative and indeed, quirky.
+
+
+From the project:
+The Code
+To save effort, the code for handling the WiFi connection is borrowed from the TI CC3000 Home Automation example. A few edits have made it easier to use with the project. Similarly, a few of the hardware drivers are borrowed from other examples. Everything else (All labelled) is original. Some parts are bound to fail, the makefile for example struggles some days to understand where files are (Right next to you dude, its taped to your head...) some days, but otherwise works fine.
