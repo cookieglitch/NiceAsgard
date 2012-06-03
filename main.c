@@ -91,7 +91,7 @@ static unsigned char CC3000ConectionState;
 #define NUM_OF_SKIP_ATTEMPTS          600
 
 unsigned long g_ulSocketUdpLightBulbs, g_ulSocketUdpThermostatsRcv,
-		g_ulSocketUdpThermostatsSend;
+				g_ulSocketUdpThermostatsSend;
 unsigned long g_ulSmartConfigFinished;
 unsigned char g_ucHaveIpAddress = 0;
 
@@ -118,6 +118,11 @@ unsigned char stateBuffer[100];
 #define SW_UP	0x991
 #define SW_DOWN	0x992
 #define SW_SEL	0x993
+
+//Small network address book
+#define LOCAL1	0x61D
+#define REMOTE1	0xC72
+#define REMOTE2 0xC71
 
 void sys_init()
 {
@@ -158,7 +163,7 @@ void sys_init()
 //	P1OUT &= ~(BIT0 + BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7);
 //	P1DIR &= ~(BIT0 + BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7);
 //	P1REN |= (BIT0 + BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7);
-
+	
 	// P1.4 is used as input from NTC voltage divider
 	// Set it to output low
 	P1OUT &= ~BIT4;
@@ -171,9 +176,26 @@ void sys_init()
 	P1SEL0 &= ~BIT3;
 
 	// P2.2 - P2.6 is unused
-	P2OUT &= ~(BIT2 + BIT4 + BIT5 + BIT6);
-	P2DIR &= ~(BIT2 + BIT4 + BIT5 + BIT6);
-	P2REN |= (BIT2 + BIT4 + BIT5 + BIT6);
+	P2OUT &= ~(BIT4 + BIT5 + BIT6);
+	P2DIR &= ~(BIT4 + BIT5 + BIT6);
+	P2REN |= (BIT4 + BIT5 + BIT6);
+	
+	//Setup PWM
+	//ACCOUNTS FOR ONLY ONE PIN!
+	//TODO Guaranteed to be buggy. Find some new PWM code and usable pins
+	
+	P2DIR |= BIT2; // P2.2 to output
+	P2SEL |= BIT2; // P2.2 to TA0.1
+	
+	CCR0 = 1000-1; // PWM Period
+	CCTL1 = OUTMOD_7; // CCR1 reset/set
+	CCR1 = 250; // CCR1 PWM duty cycle
+	TACTL = TASSEL_2 + MC_1; // SMCLK, up mode
+	
+	_BIS_SR(LPM0_bits); // Enter LPM0
+	
+	
+	
 
 	// Configure SPI IRQ line on P2.3
 	P2DIR &= (~BIT3);
@@ -922,6 +944,8 @@ void changeBlindPos(int pos)
 	if (pos < settingsMAX.blindPos && pos > settingsMIN.blindPos)
 	{
 		//Change pos
+		CCR1 = pos; // CCR1 PWM duty cycle
+		_BIS_SR(LPM0_bits); // Enter LPM0
 	}
 	else
 	{
@@ -941,6 +965,8 @@ void changeLightLev(int lev)
 	if (lev < settingsMAX.lightLev && lev > settingsMIN.lightLev)
 	{
 		//Change level
+		CCR1 = lev; // CCR1 PWM duty cycle
+		_BIS_SR(LPM0_bits); // Enter LPM0
 	}
 	else
 	{
@@ -1210,8 +1236,66 @@ int main(void)
 					}
 					else
 					{
-						//Forward on instruction
+						int remote_cmd = -1;
+						int dest = 0;
 						
+						if (state == CLOSE1)
+						{
+							remote_cmd = CLOSE1;
+							dest = REMOTE1;
+						}
+						else if(state == OPEN1)
+						{
+							remote_cmd = OPEN1;
+							dest = REMOTE1;
+						}
+						else if(state == FILM1)
+						{
+							remote_cmd = FILM1;
+							dest = REMOTE1;
+						}
+						else if(state == DAY1)
+						{
+							remote_cmd = DAY1;
+							dest = REMOTE1;
+						}
+						else if(state == NIGHT1)
+						{
+							remote_cmd = NIGHT1;
+							dest = REMOTE1;
+						}
+						else if (state == CLOSE2)
+						{
+							remote_cmd = CLOSE;
+							dest = REMOTE2;
+						}
+						else if(state == OPEN2)
+						{
+							remote_cmd = OPEN2;
+							dest = REMOTE2;
+						}
+						else if(state == FILM2)
+						{
+							remote_cmd = FILM2;
+							dest = REMOTE2;
+						}
+						else if(state == DAY2)
+						{
+							remote_cmd = DAY2;
+							dest = REMOTE2;
+						}
+						else if(state == NIGHT2)
+						{
+							remote_cmd = NIGHT2;
+							dest = REMOTE2;
+						}
+						else
+						{
+							//Leave system as is and continue
+						}
+						//Forward on instruction
+						UART_transmitData(__MSP430_BASEADDRESS_USCI_A0__,
+										  transmitData++ );
 					}
 
 					
